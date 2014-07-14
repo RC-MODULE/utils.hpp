@@ -1,0 +1,240 @@
+#ifndef __async_ops_bfd26d91_36b7_4a08_a1fb_c9861d8d723c_hpp__
+#define __async_ops_bfd26d91_36b7_4a08_a1fb_c9861d8d723c_hpp__
+
+#include "base.hpp" 
+#include "expected.hpp"
+
+namespace utils {
+inline namespace async_ops {
+
+// Library of combinators of asio style async operation (op(callback(std::error_code const& ec, result_type result)));
+//
+// // so, i want to be able to write something like this:
+// async_read_some(device, buffers)
+// << [&](std::size_t bytes) {
+//      return async_write_some(device, std::const_buffers(buffers, bytes));
+//    }
+// += callback;
+
+// async operation concept:
+// struct async_op {
+//   template<typename Func>
+//   auto operator()(Func&& func) -> std::enable_if<is_callbable<Func(std::error_code, async_result_type<async_op>)>::value>::type;
+// };
+// 
+
+template<typename A>
+struct is_async_op : std::false_type {};
+
+template<typename A>
+struct async_result;
+
+template<typename A>
+using async_result_type = typename async_result<A>::type;
+
+template<typename V>
+struct async_value {
+  V value;
+
+  template<typename F>
+  auto operator += (F&& f) -> typename std::enable_if<is_callable<F(V)>::value>::type {
+    f(value);
+  }
+};
+
+template<typename V>
+struct is_async_op<async_value<V>> : std::true_type {};
+
+template<typename V>
+struct async_result<async_value<V>> {
+  using type = V;
+};
+
+template<typename V>
+async_value<decayed_type<V>> make_async_value(V&& v) { return {std::forward<V>(v)}; }
+
+template<typename A>
+struct unwrapped_async_op {
+  A a;
+
+  using result_type = async_result_type<async_result_type<A>>;
+
+  template<typename F>
+  auto operator += (F&& f) -> typename std::enable_if<is_callable<F(result_type)>::value>::type {
+    a += [=](async_result_type<A> r) mutable {
+      r += f;
+    };
+  }
+};
+
+template<typename A>
+struct is_async_op<unwrapped_async_op<A>> : std::true_type {};
+
+template<typename A>
+struct async_result<unwrapped_async_op<A>> {
+  using type = typename unwrapped_async_op<A>::result_type;
+};
+
+template<typename A>
+auto unwrap(A a) -> typename std::enable_if<
+    is_async_op<A>::value && is_async_op<async_result_type<A>>::value,
+    unwrapped_async_op<decayed_type<A>>
+  >::type
+{
+  return {std::move(a)};
+}
+
+template<typename A>
+auto unwrap(A&& a) -> typename std::enable_if<
+    is_async_op<A>::value && !is_async_op<async_result_type<A>>::value,
+    decayed_type<A>
+  >::type
+{
+  return std::forward<A>(a);
+}
+
+template<typename A, typename F>
+struct combined_async_op {
+  A a;
+  F func;
+
+  using result_type = decltype(func(std::declval<async_result_type<A>>()));
+
+  template<typename F2>
+  auto operator += (F2&& func2) -> typename std::enable_if<is_callable<F2(result_type)>::value>::type {
+    auto mf = move_on_copy(func);
+    a += [=](async_result_type<A> r) mutable {
+      func2(func(std::move(r)));
+    };
+  }
+};
+
+template<typename A, typename F>
+struct is_async_op<combined_async_op<A,F>> : std::true_type {};
+
+template<typename A, typename F>
+struct async_result<combined_async_op<A,F>> {
+  using type = typename combined_async_op<A,F>::result_type;
+};
+
+template<typename A, typename F>
+struct combined_and_unwrapped_type {
+  using type = decltype(unwrap(std::declval<combined_async_op<A,F>>()));
+};
+
+template<typename A, typename F>
+auto operator >> (A a, F func) -> typename std::enable_if<
+    is_async_op<A>::value && is_callable<F(async_result_type<A>)>::value,
+    combined_and_unwrapped_type<A,F>
+  >::type::type
+{
+  return unwrap(combined_async_op<A,F>{std::move(a), std::move(func)});
+}
+
+// async_op interface for expected<async_op, E>
+
+template<typename A, typename E>
+struct is_async_op<expected<A, E>> : is_async_op<A> {};
+
+template<typename A, typename E>
+struct async_result<expected<A, E>> {
+  static_assert(is_async_op<A>::value, "expected::value_type must be an async_op");
+
+  using type = decltype(make_expected<E>(std::declval<async_result_type<A>>()));
+};
+
+template<typename A, typename E, typename F>
+auto operator += (expected<A, E> a, F func) -> typename std::enable_if<
+    is_async_op<expected<A, E>>::value
+    && is_callable<F(async_result_type<expected<A,E>>)>::value
+  >::type
+{
+  if(a.has_value()) {
+    a.value() += [=] (async_result_type<A> r) mutable {
+      func(make_expected<E>(r));
+    };
+  }
+  else
+    func(async_result_type<expected<A,E>>(std::move(a.error())));
+}
+
+template<typename A, typename F>
+auto operator >> (A a, F func) -> typename std::enable_if<
+    is_async_op<A>::value
+    && is_expected_type<async_result_type<A>>::value
+    && is_callable<F(typename async_result_type<A>::value_type)>::value,
+    //decltype(unwrap(std::declval<combined_async_op<A, decltype(if_valued(std::move(func)))>>()))
+    combined_and_unwrapped_type<A, decltype(if_valued(std::move(func)))>
+  >::type::type
+{
+  return a >> if_valued(std::move(func));
+}
+
+//
+// tempalte<typename F>
+// ... expected_to_asio(F f) 
+//
+// converts callback accepting expected<std::error_code, T> value i.e `callback(expected<std::error_code, T> v)' to
+// asio style callback accepting std::error_code and return value - `callback(std::error_code const& ec, T r)'
+//
+
+template<typename F>
+struct expected_to_asio_wrapper {
+  F func;
+
+  template<typename T>
+  auto operator()(std::error_code const ec, T&& t) -> expected<decayed_type<T>, std::error_code> {
+    expected<decayed_type<T>, std::error_code> v(ec);
+    if(!ec) v = std::forward<T>(t);
+    
+    return make_expected<std::error_code>(func(std::move(v))); 
+  }
+};
+
+template<typename F>
+expected_to_asio_wrapper<decayed_type<F>> expected_to_asio(F&& func) {
+  return {std::forward<F>(func)};
+}
+
+//
+// adapter for asio devices supporting async_read_some method
+//
+// template<typename Device, typename Buffers>
+// async_op async_read_some(Device& device, Buffers buffer);
+//
+
+template<typename Device, typename Buffers>
+struct async_read_some_op {
+  Device& device;
+  Buffers buffers;
+
+  using result_type = expected<std::error_code, std::size_t>;
+
+  template<typename Func>
+  auto operator()(Func&& func) -> typename std::enable_if<is_callable<Func(result_type)>::value>::type {
+    device.async_read_some(buffers, expected_to_asio(func));
+  }
+
+  template<typename Func>
+  friend auto operator += (async_read_some_op& op, Func func) -> typename std::enable_if<is_callable<Func(result_type)>::value>::type {
+    op.device.async_read_some(op.buffers, expected_to_asio(std::move(func)));
+  }
+};
+
+template<typename Device, typename Buffers>
+struct is_async_op<async_read_some_op<Device, Buffers>> : std::true_type {};
+
+template<typename Device, typename Buffers>
+struct async_result<async_read_some_op<Device, Buffers>> {
+  using type = expected<std::error_code, std::size_t>;
+};
+
+template<typename Device, typename Buffers>
+async_read_some_op<Device, Buffers> async_read_some(Device& d, Buffers buffers) {
+  return {d, std::move(buffers)};
+}
+
+} // namespace async_ops
+} // namespace utils
+
+#endif
