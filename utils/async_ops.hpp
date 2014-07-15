@@ -177,6 +177,17 @@ auto operator >> (A a, F func) -> typename std::enable_if<
   return a >> if_valued(std::move(func));
 }
 
+template<typename A, typename F>
+auto operator >> (A a, F func) -> typename std::enable_if<
+    is_async_op<A>::value
+    && is_expected_type<async_result_type<A>>::value
+    && is_callable<F(typename async_result_type<A>::error_type)>::value,
+    combined_and_unwrapped_type<A, decltype(if_errored(std::move(func)))>
+  >::type::type
+{
+  return a >> if_errored(std::move(func));
+}
+
 //
 // tempalte<typename F>
 // ... expected_to_asio(F f) 
