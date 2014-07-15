@@ -32,6 +32,7 @@ struct async_result;
 template<typename A>
 using async_result_type = typename async_result<A>::type;
 
+// trivial async op - async value container
 template<typename V>
 struct async_value {
   V value;
@@ -53,6 +54,9 @@ struct async_result<async_value<V>> {
 template<typename V>
 async_value<decayed_type<V>> make_async_value(V&& v) { return {std::forward<V>(v)}; }
 
+//
+// support for async_ops returning async_op
+//
 template<typename A>
 struct unwrapped_async_op {
   A a;
@@ -92,6 +96,10 @@ auto unwrap(A&& a) -> typename std::enable_if<
 {
   return std::forward<A>(a);
 }
+
+//
+// support for async_op chaining
+//
 
 template<typename A, typename F>
 struct combined_async_op {
@@ -163,7 +171,6 @@ auto operator >> (A a, F func) -> typename std::enable_if<
     is_async_op<A>::value
     && is_expected_type<async_result_type<A>>::value
     && is_callable<F(typename async_result_type<A>::value_type)>::value,
-    //decltype(unwrap(std::declval<combined_async_op<A, decltype(if_valued(std::move(func)))>>()))
     combined_and_unwrapped_type<A, decltype(if_valued(std::move(func)))>
   >::type::type
 {
@@ -194,6 +201,25 @@ struct expected_to_asio_wrapper {
 template<typename F>
 expected_to_asio_wrapper<decayed_type<F>> expected_to_asio(F&& func) {
   return {std::forward<F>(func)};
+}
+
+// += operator overload for asio style callbacks
+
+template<typename A, typename F>
+auto operator += (A op, F func) -> typename std::enable_if<
+    is_async_op<A>::value
+    && is_expected_type<async_result_type<A>>::value
+    && std::is_same<std::error_code, typename async_result_type<A>::error_type>::value
+    && std::is_default_constructible<typename async_result_type<A>::value_type>::value
+    && is_callable<F(typename async_result_type<A>::error_type, typename async_result_type<A>::value_type)>::value
+  >::type
+{
+  op += [=](async_result_type<A> r) mutable {
+    if(r.has_value())
+      func(std::error_code(), r.value());
+    else
+      func(r.error(), typename async_result_type<A>::value_type{});
+  };
 }
 
 //
