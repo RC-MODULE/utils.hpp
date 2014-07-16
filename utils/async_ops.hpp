@@ -233,6 +233,23 @@ auto operator += (A op, F func) -> typename std::enable_if<
   };
 }
 
+template<typename A, typename F>
+auto operator += (A op, F func) -> typename std::enable_if<
+    is_async_op<A>::value
+    && is_expected_type<async_result_type<A>>::value
+    && std::is_same<std::error_code, typename async_result_type<A>::error_type>::value
+    && std::is_void<typename async_result_type<A>::value_type>::value
+    && is_callable<F(typename async_result_type<A>::error_type)>::value
+  >::type
+{
+  op += [=](async_result_type<A> r) mutable {
+    if(r.has_value())
+      func(std::error_code());
+    else
+      func(r.error());
+  };
+}
+
 //
 // adapter for asio devices supporting async_read_some method
 //
