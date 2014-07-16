@@ -14,7 +14,7 @@ public:
   using value_type = T;
   using error_type = E;
 
-  expected() noexcept = default;
+  expected() noexcept {}
   expected(expected&&) = default;
   expected(expected const&) = default;
 
@@ -61,7 +61,7 @@ public:
   using value_type = void;
   using error_type = E;
 
-  expected() noexcept = default;
+  expected() noexcept {};
 
   expected(expected&&) = default;
   expected(expected const&) = default;
