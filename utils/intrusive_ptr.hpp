@@ -1,6 +1,8 @@
 #ifndef __INTRUSIVE_PTR_HPP__
 #define __INTRUSIVE_PTR_HPP__
 
+namespace utils {
+
 template<class T>
 class intrusive_ptr
 {
@@ -146,5 +148,7 @@ template<class T, class U>
 intrusive_ptr<T> dynamic_pointer_cast(intrusive_ptr<U> const& p) {
   return dynamic_cast<T *>(p.get());
 }
+
+} //namespace utils
 
 #endif
