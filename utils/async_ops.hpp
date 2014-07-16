@@ -262,7 +262,7 @@ struct async_read_some_op {
   Device& device;
   Buffers buffers;
 
-  using result_type = expected<std::error_code, std::size_t>;
+  using result_type = expected<std::size_t, std::error_code>;
 
   template<typename Func>
   auto operator()(Func&& func) -> typename std::enable_if<is_callable<Func(result_type)>::value>::type {
@@ -280,7 +280,7 @@ struct is_async_op<async_read_some_op<Device, Buffers>> : std::true_type {};
 
 template<typename Device, typename Buffers>
 struct async_result<async_read_some_op<Device, Buffers>> {
-  using type = expected<std::error_code, std::size_t>;
+  using type = typename async_read_some_op<Device, Buffers>::result_type;
 };
 
 template<typename Device, typename Buffers>
