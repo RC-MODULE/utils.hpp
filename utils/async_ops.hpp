@@ -271,6 +271,56 @@ async_read_some_op<Device, Buffers> async_read_some(Device& d, Buffers buffers) 
   return {d, std::move(buffers)};
 }
 
+//
+// polimorphic_async_op
+//
+template<typename T>
+struct polymorphic_async_op {
+  std::function<void (std::function<void (T)>)> func;
+
+  polymorphic_async_op() = default;
+  polymorphic_async_op(polymorphic_async_op&&) = default;
+  polymorphic_async_op(polymorphic_async_op const&) = default;
+
+  template<typename A>
+  static
+  auto make_func(A&& a) -> typename std::enable_if<
+      is_async_op<decayed_type<A>>::value 
+      && std::is_same<T, async_result_type<decayed_type<A>>>::value
+      && !std::is_same<polymorphic_async_op<T>, decayed_type<A>>::value,
+      std::function<void (std::function<void (T)>)>
+    >::type
+  {
+    auto mf = move_on_copy(std::forward<A>(a));
+    return [=](std::function<void (T)> func) mutable { unwrap(mf) += std::move(func); };
+  }
+
+  template<typename A>
+  polymorphic_async_op(A a) : func(make_func(std::forward<A>(a))) {}
+  
+  polymorphic_async_op& operator = (polymorphic_async_op&&) = default;
+  polymorphic_async_op& operator = (polymorphic_async_op const&) = default;
+
+  template<typename A>
+  auto operator = (A&& a) -> decltype(make_func(std::forward<A>(a)), *this) {
+    func = make_func(std::forward<A>(a));
+    return *this;
+  }
+ 
+  template<typename F>
+  friend auto operator += (polymorphic_async_op<T> op, F func) -> typename std::enable_if<is_callable<F(T)>::value>::type {
+    op.func(std::move(func));
+  }
+};
+
+template<typename T>
+struct is_async_op<polymorphic_async_op<T>> : std::true_type {};
+
+template<typename T>
+struct async_result<polymorphic_async_op<T>> {
+  using type = T;
+};
+
 } // namespace async_ops
 } // namespace utils
 
