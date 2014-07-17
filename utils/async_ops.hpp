@@ -112,7 +112,7 @@ struct combined_async_op {
   auto operator += (F2&& func2) -> typename std::enable_if<is_callable<F2(result_type)>::value>::type {
     auto mf = move_on_copy(func);
     a += [=](async_result_type<A> r) mutable {
-      func2(func(std::move(r)));
+      func2(unwrap(mf)(std::move(r)));
     };
   }
 };
