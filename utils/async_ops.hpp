@@ -201,11 +201,17 @@ struct expected_to_asio_wrapper {
   F func;
 
   template<typename T>
-  auto operator()(std::error_code const ec, T&& t) -> expected<decayed_type<T>, std::error_code> {
+  void operator()(std::error_code const ec, T&& t) {
     expected<decayed_type<T>, std::error_code> v(ec);
     if(!ec) v = std::forward<T>(t);
     
-    return make_expected<std::error_code>(func(std::move(v))); 
+    func(std::move(v));
+  }
+
+  void operator()(std::error_code const& ec) {
+    expected<void, std::error_code> v(ec);
+    if(!ec) v = expected<void, std::error_code>();
+    func(std::move(v));
   }
 };
 
