@@ -31,7 +31,7 @@ public:
     storage = std::move(t);
     return *this;
   }
-  expected& operator = (T const& t) noexcept(noexcept(T(t)) && noexcept(std::declval<T>() = t)) {
+  expected& operator = (T const& t) noexcept(std::is_nothrow_copy_constructible<T>::value && std::is_nothrow_copy_assignable<T>::value) {
     storage = t;
     return *this;
   }
