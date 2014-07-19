@@ -221,34 +221,6 @@ struct if_valued_type {
     if(te.has_value()) return construct_with_value(te, func);
     return decltype(construct_with_value(te, func)){te.error()};
   }
-
-  template<typename T>
-  auto operator()(expected<T, std::exception_ptr>&& te) -> decltype(construct_with_value(std::move(te), func)) {
-    using result_type = decltype(construct_with_value(std::move(te), func));
-    if(te.has_value()) {
-      try {
-        return construct_with_value(std::move(te), func);
-      }
-      catch(...) {
-        return result_type{std::current_exception()};
-      }
-    }
-    return result_type{std::move(te.error())};
-  }
-
-  template<typename T>
-  auto operator()(expected<T, std::exception_ptr> const& te) -> decltype(construct_with_value(std::move(te), func)) {
-    using result_type = decltype(construct_with_value(std::move(te), func));
-    if(te.has_value()) {
-      try {
-        return construct_with_value(std::move(te), func);
-      }
-      catch(...) {
-        return result_type{std::current_exception()};
-      }
-    }
-    return result_type{std::move(te.error())};
-  }
 };
 
 template<typename F>
