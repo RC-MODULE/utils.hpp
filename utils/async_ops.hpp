@@ -344,6 +344,55 @@ struct async_result<polymorphic_async_op<T>> {
   using type = T;
 };
 
+//
+// async_future
+
+template<typename T>
+struct async_variable {
+  variant<std::nullptr_t, std::function<void (T t)>, T> state;
+
+  async_variable() noexcept {}
+  async_variable(async_variable&&) = default;
+  async_variable& operator=(async_variable&&) = default;
+
+  async_variable& operator = (T t) {
+    if(state.tag() == 1)
+      (state.template get<1>())(std::move(t));
+
+    state = std::move(t); 
+  
+    return *this;
+  }
+
+  template<typename F>
+  auto operator += (F func) -> typename std::enable_if<is_callable<F(T)>::value>::type
+  {
+    if(state.tag() == 2)
+      func(std::move(state.template get<2>()));
+    else
+      state = std::function<void (T)>(std::move(func));
+  }
+};
+
+template<typename T>
+struct is_async_op<async_variable<T>> : std::true_type {};
+
+template<typename T>
+struct async_result<async_variable<T>> {
+  using type = T;
+};
+
+template<typename T, typename F>
+auto operator += (std::shared_ptr<async_variable<T>> const& v, F func) -> typename std::enable_if<is_callable<F(T)>::value>::type {
+  *v += std::move(func);
+}
+
+template<typename T>
+struct is_async_op<std::shared_ptr<async_variable<T>>> : std::true_type {};
+
+template<typename T>
+struct async_result<std::shared_ptr<async_variable<T>>> : async_result<async_variable<T>> {};
+
 } // namespace async_ops
 } // namespace utils
 
