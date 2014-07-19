@@ -3,6 +3,7 @@
 
 // partial implementation of N4015 proposal for C++ standard library
 
+#include "base.hpp"
 #include "variant.hpp"
 
 namespace utils {
@@ -138,6 +139,16 @@ auto call_with_value(expected<T,E> const& te, F&& f) -> decltype(f(te.value())) 
 template<typename E, typename F>
 auto call_with_value(expected<void,E> const& te, F&& f) -> decltype(f()) { return f(); }
 
+template<typename E, typename F, typename... Args>
+auto call_with_value(expected<std::tuple<Args...>, E>&& te, F&& f) -> decltype(call_with_tuple(std::forward<F>(f), std::move(te.value()))) {
+  return call_with_tuple(std::forward<F>(f), std::move(te.value()));
+}
+
+template<typename E, typename F, typename... Args>
+auto call_with_value(expected<std::tuple<Args...>, E> const& te, F&& f) -> decltype(call_with_tuple(std::forward<F>(f), te.value())) {
+  return call_with_tuple(std::forward<F>(f), te.value());
+}
+
 template<typename T, typename E, typename F>
 auto construct_with_value(expected<T,E>&& te, F&& f) -> decltype(make_expected<E>(call_with_value(std::move(te), std::forward<F>(f)))) {
   return make_expected<E>(call_with_value(std::move(te), std::forward<F>(f)));
@@ -209,6 +220,34 @@ struct if_valued_type {
   auto operator()(expected<T, E> const& te) -> decltype(construct_with_value(te, func)) {
     if(te.has_value()) return construct_with_value(te, func);
     return decltype(construct_with_value(te, func)){te.error()};
+  }
+
+  template<typename T>
+  auto operator()(expected<T, std::exception_ptr>&& te) -> decltype(construct_with_value(std::move(te), func)) {
+    using result_type = decltype(construct_with_value(std::move(te), func));
+    if(te.has_value()) {
+      try {
+        return construct_with_value(std::move(te), func);
+      }
+      catch(...) {
+        return result_type{std::current_exception()};
+      }
+    }
+    return result_type{std::move(te.error())};
+  }
+
+  template<typename T>
+  auto operator()(expected<T, std::exception_ptr> const& te) -> decltype(construct_with_value(std::move(te), func)) {
+    using result_type = decltype(construct_with_value(std::move(te), func));
+    if(te.has_value()) {
+      try {
+        return construct_with_value(std::move(te), func);
+      }
+      catch(...) {
+        return result_type{std::current_exception()};
+      }
+    }
+    return result_type{std::move(te.error())};
   }
 };
 
