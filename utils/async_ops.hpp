@@ -170,7 +170,7 @@ template<typename A, typename F>
 auto operator >> (A a, F func) -> typename std::enable_if<
     is_async_op<A>::value
     && is_expected_type<async_result_type<A>>::value
-    && is_callable<F(typename async_result_type<A>::value_type)>::value,
+    && is_callable<if_valued_type<F>(async_result_type<A>)>::value,
     combined_and_unwrapped_type<A, decltype(if_valued(std::move(func)))>
   >::type::type
 {
@@ -348,3 +348,4 @@ struct async_result<polymorphic_async_op<T>> {
 } // namespace utils
 
 #endif
+
