@@ -66,7 +66,7 @@ struct unwrapped_async_op {
   template<typename F>
   auto operator += (F&& f) -> typename std::enable_if<is_callable<F(result_type)>::value>::type {
     a += [=](async_result_type<A> r) mutable {
-      r += f;
+      std::move(r) += f;
     };
   }
 };
@@ -159,7 +159,7 @@ auto operator += (expected<A, E> a, F func) -> typename std::enable_if<
 {
   if(a.has_value()) {
     a.value() += [=] (async_result_type<A> r) mutable {
-      func(make_expected<E>(r));
+      func(make_expected<E>(std::move(r)));
     };
   }
   else
@@ -174,7 +174,7 @@ auto operator >> (A a, F func) -> typename std::enable_if<
     combined_and_unwrapped_type<A, decltype(if_valued(std::move(func)))>
   >::type::type
 {
-  return a >> if_valued(std::move(func));
+  return std::move(a) >> if_valued(std::move(func));
 }
 
 template<typename A, typename F>
@@ -185,7 +185,7 @@ auto operator >> (A a, F func) -> typename std::enable_if<
     combined_and_unwrapped_type<A, decltype(if_errored(std::move(func)))>
   >::type::type
 {
-  return a >> if_errored(std::move(func));
+  return std::move(a) >> if_errored(std::move(func));
 }
 
 //
@@ -233,7 +233,7 @@ auto operator += (A op, F func) -> typename std::enable_if<
 {
   op += [=](async_result_type<A> r) mutable {
     if(r.has_value())
-      func(std::error_code(), r.value());
+      func(std::error_code(), std::move(r.value()));
     else
       func(r.error(), typename async_result_type<A>::value_type{});
   };
