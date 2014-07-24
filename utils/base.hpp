@@ -142,6 +142,20 @@ struct range {
   I first;
   I last;
 
+  range() = default;
+
+  range(I first, I last) : first(first), last(last) {}
+ 
+  template<typename I2>
+  range(range<I2> const& r2) : first(r2.first), last(r2.last) {}
+
+  template<typename I2>
+  range& operator=(range<I2> const& r2) {
+    first = r2.first;
+    last = r2.last;
+    return *this;
+  }
+
   I begin() const { return first; }
   I end() const { return last; }
 
