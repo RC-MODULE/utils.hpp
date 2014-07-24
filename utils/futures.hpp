@@ -18,6 +18,7 @@ enum class future_errc {
   would_wait
 };
 
+inline
 const std::error_category& future_category() noexcept {
   static struct impl : std::error_category {
     const char* name() const noexcept { return "utils::futures"; }
@@ -41,6 +42,7 @@ const std::error_category& future_category() noexcept {
   return cat;
 }
 
+inline
 std::error_code make_error_code(future_errc e) noexcept { return std::error_code((int)e, future_category()); }
 
 std::error_condition make_error_condition(future_errc e) noexcept;
