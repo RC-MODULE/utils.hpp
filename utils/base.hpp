@@ -309,6 +309,11 @@ inline move_on_copy_wrapper<decayed_type<T>> move_on_copy(T&& t) {
   return move_on_copy_wrapper<decayed_type<T>>(std::move(t));
 }
 
+template<typename B, typename A>
+A* container_of(B* b, B A::* p) {
+  return reinterpret_cast<A*>(((char*)b) - ((char*)&(reinterpret_cast<A*>(0)->*p) - (char*)(0)));
+}
+
 }
 
 #endif
