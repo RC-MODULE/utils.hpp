@@ -314,6 +314,22 @@ A* container_of(B* b, B A::* p) {
   return reinterpret_cast<A*>(((char*)b) - ((char*)&(reinterpret_cast<A*>(0)->*p) - (char*)(0)));
 }
 
+
+// rearranges sequence [first, last) to alternatingly satisfy pred. 
+// i.e pred(first) == true, pred(first+1) == false, pred(first+2) == true etc
+template<typename I, typename Pred>
+I stable_alternate(I first, I last, Pred pred) {
+  for(bool bit = true; first != last; first++, bit = !bit) {
+    I i = bit ? std::find_if(first, last, pred) : std::find_if_not(first, last, pred);
+    if(i == last) return first;
+    
+    auto t = i++;
+    std::rotate(first, t, i);
+  }
+
+  return first;
+}
+
 }
 
 #endif
