@@ -319,16 +319,27 @@ A* container_of(B* b, B A::* p) {
 // i.e pred(first) == true, pred(first+1) == false, pred(first+2) == true etc
 template<typename I, typename Pred>
 I stable_alternate(I first, I last, Pred pred) {
-  for(bool bit = true; first != last; first++, bit = !bit) {
-    I i = bit ? std::find_if(first, last, pred) : std::find_if_not(first, last, pred);
+  bool bit = true;
+  auto i = first;
+  while(first != last) {
+    i = bit ? std::find_if(i, last, pred) : std::find_if_not(first, last, pred);
     if(i == last) return first;
     
-    auto t = i++;
-    std::rotate(first, t, i);
+    if(i != first) {
+      auto t = i++;
+      std::rotate(first, t, i);
+      std::advance(first, 2);
+    }
+    else {
+      ++first;
+      ++i;  
+      bit = !bit;
+    }
   }
 
   return first;
 }
+
 
 }
 
