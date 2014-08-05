@@ -168,8 +168,8 @@ struct range {
   std::size_t size() const { return end() - begin(); }
   bool empty() const { return end() == begin(); }
 
-  auto operator[](std::size_t i) const -> decltype(first[i]) { return begin()[i]; }
-  auto operator[](std::size_t i) -> decltype(first[i]) { return begin()[i]; }
+  auto operator[](std::size_t i) const -> decltype(*first) { return begin()[i]; }
+  auto operator[](std::size_t i) -> decltype(*first) { return begin()[i]; }
 };
 
 template<typename I>
