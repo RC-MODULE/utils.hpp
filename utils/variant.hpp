@@ -195,7 +195,7 @@ public:
     new (&get<I>()) typename std::remove_reference<decltype(get<I>())>::type (std::forward<Args>(args)...);
   }
 
-  variant(variant const& rhs) {
+  variant(variant const& rhs) noexcept(utils::is_all_predicate<std::is_nothrow_copy_constructible, Types...>::value) {
     tag_ = rhs.tag_;
     apply_to_static_index<0, sizeof...(Types)>(rhs.tag_, copy_construct(), *this, rhs);
   }
@@ -215,7 +215,10 @@ public:
     return *this;
   }
 
-  variant& operator=(variant const& rhs) {
+  variant& operator=(variant const& rhs) 
+    noexcept(utils::is_all_predicate<std::is_nothrow_copy_constructible, Types...>::value
+      && utils::is_all_predicate<std::is_nothrow_copy_assignable, Types...>::value)
+  {
     apply_to_static_index<0, sizeof...(Types)>(rhs.tag_, assign(), *this, rhs);
     return *this;
   }
