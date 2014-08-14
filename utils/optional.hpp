@@ -66,6 +66,16 @@ public:
   
   friend bool operator < (optional const& a, nullopt_t) noexcept { return false; }
   friend bool operator < (nullopt_t, optional const& a) noexcept { return a; }
+
+  template<typename... Args>
+  void emplace(Args&&... args) {
+    storage = variant<nullopt_t, T>{std::integral_constant<int, 1>{}, std::forward<Args>(args)...};
+  }
+
+  template<typename U, typename... Args>
+  void emplace(std::initializer_list<U> ilist, Args&&... args) {
+    storage = variant<nullopt_t, T>{std::integral_constant<int, 1>{}, ilist, std::forward<Args>(args)...}; 
+  }
 };
 
 }
