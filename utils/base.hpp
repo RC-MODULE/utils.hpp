@@ -7,6 +7,7 @@
 #include <iostream>
 #include <tuple>
 #include <memory>
+#include <algorithm>
 
 namespace utils {
 
