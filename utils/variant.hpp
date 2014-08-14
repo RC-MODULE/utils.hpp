@@ -190,9 +190,17 @@ public:
   {}
 
   template<int I, typename... Args>
-  variant(std::integral_constant<int, I> ic, Args&&... args) noexcept(std::is_nothrow_default_constructible<typename Type<I, Types...>::type>::value) {
+  variant(std::integral_constant<int, I> ic, Args&&... args) noexcept(std::is_nothrow_constructible<typename Type<I, Types...>::type, Args...>::value) {
     tag_ = I;
     new (&get<I>()) typename std::remove_reference<decltype(get<I>())>::type (std::forward<Args>(args)...);
+  }
+
+  template<int I, typename U, typename... Args>
+  variant(std::integral_constant<int, I> ic, std::initializer_list<U> ilist, Args&&... args)
+    noexcept(std::is_nothrow_constructible<typename Type<I, Types...>::type, std::initializer_list<U>, Args...>::value) 
+  {
+    tag_ = I;
+    new (&get<I>()) typename std::remove_reference<decltype(get<I>())>::type (ilist, std::forward<Args>(args)...);
   }
 
   variant(variant const& rhs) noexcept(utils::is_all_predicate<std::is_nothrow_copy_constructible, Types...>::value) {
