@@ -6,6 +6,7 @@
 #include "utils/intrusive_ptr.hpp"
 #include "utils/futures.hpp"
 #include "utils/async_ops.hpp"
+#include "utils/optional.hpp"
 
 #endif
 
