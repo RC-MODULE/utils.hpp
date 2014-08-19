@@ -13,13 +13,13 @@ constexpr nullopt_t nullopt{};
 
 template<typename T>
 class optional {
-  variant<nullopt_t, T> storage;
+  variant<nullopt_t, T> storage{nullopt};
 public:
   constexpr optional() noexcept = default;
   constexpr optional(nullopt_t) noexcept {}
 
-  optional(const optional&) noexcept(std::is_nothrow_copy_constructible<T>::value) = default;
-  optional(optional&&) noexcept(std::is_nothrow_move_constructible<T>::value) = default;
+  optional(const optional& r) noexcept(std::is_nothrow_copy_constructible<T>::value) : storage(r.storage) {}
+  optional(optional&& r) noexcept(std::is_nothrow_move_constructible<T>::value) : storage(std::move(r.storage)) {}
 
   constexpr optional(T const& t) noexcept(std::is_nothrow_copy_constructible<T>::value) : storage(t) {}
   constexpr optional(T&& t) noexcept(std::is_nothrow_move_constructible<T>::value) : storage(std::move(t)) {}
@@ -32,8 +32,15 @@ public:
     return *this;
   }
 
-  optional& operator = (optional const&) noexcept(std::is_nothrow_copy_assignable<T>::value && std::is_nothrow_copy_constructible<T>::value) = default;
-  optional& operator = (optional&&) noexcept(std::is_nothrow_move_assignable<T>::value && std::is_nothrow_move_constructible<T>::value) = default;
+  optional& operator = (optional const& r) noexcept(std::is_nothrow_copy_assignable<T>::value && std::is_nothrow_copy_constructible<T>::value) {
+    storage = r.storage;
+    return *this;
+  }
+
+  optional& operator = (optional&& r) noexcept(std::is_nothrow_move_assignable<T>::value && std::is_nothrow_move_constructible<T>::value) {
+    storage = std::move(r.storage);
+    return *this;
+  }
 
   template<typename U>
   auto operator = (U&& value) -> typename std::enable_if<std::is_constructible<T,U>::value && std::is_assignable<T,U>::value, optional>::type {
