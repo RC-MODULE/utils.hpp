@@ -393,6 +393,55 @@ struct is_async_op<std::shared_ptr<async_variable<T>>> : std::true_type {};
 template<typename T>
 struct async_result<std::shared_ptr<async_variable<T>>> : async_result<async_variable<T>> {};
 
+template<typename T, typename OP> 
+struct ensure_op {
+  variant<T, OP> op; 
+
+  template<typename F>
+  auto operator += (F func) -> typename std::enable_if<is_callable<F(T)>::value>::type {
+    if(op.tag() == 0)
+      func(std::move(op.template get<0>()));
+    else
+      op.template get<1>() += std::move(func);
+  }
+};
+
+template<typename T,typename A>
+struct is_async_op<ensure_op<T,A>> : std::true_type {};
+
+template<typename T, typename A>
+struct async_result<ensure_op<T,A>>  { using type = T; };
+
+template<typename T, typename A>
+auto ensure(T t, A aop) -> typename std::enable_if<
+    std::is_convertible<decltype(!!t), bool>::value
+    && is_async_op<A>::value
+    && std::is_same<T, typename async_result<A>::type>::value,
+    ensure_op<T,A>
+  >::type
+{
+  if(!!t)
+    return ensure_op<T,A>{{std::move(t)}};
+  else
+    return ensure_op<T,A>{{std::move(aop)}};
+}
+
+template<typename T, typename A>
+auto ensure(T t, A a) -> typename std::enable_if<
+    std::is_convertible<decltype(!!t), bool>::value
+    && is_async_op<A>::value
+    && std::is_same<typename std::decay<decltype(*t)>::type, typename async_result<A>::type>::value,
+    ensure_op<typename std::decay<decltype(*t)>::type, A>
+  >::type
+{
+  using return_type = ensure_op<typename std::decay<decltype(*t)>::type, A>;
+
+  if(!!t)
+    return return_type{{std::move(*t)}};
+  else
+    return return_type{{std::move(a)}}; 
+}
+
 } // namespace async_ops
 } // namespace utils
 
