@@ -318,6 +318,10 @@ A* container_of(B* b, B A::* p) {
   return reinterpret_cast<A*>(((char*)b) - ((char*)&(reinterpret_cast<A*>(0)->*p) - (char*)(0)));
 }
 
+template<typename B, typename A>
+A const* container_of(B const* b, B A::* p) {
+  return reinterpret_cast<A const*>(((char*)b) - ((char*)&((A*)(0)->*p) - (char*)(0)));
+}
 
 // rearranges sequence [first, last) to alternatingly satisfy pred. 
 // i.e pred(first) == true, pred(first+1) == false, pred(first+2) == true etc
