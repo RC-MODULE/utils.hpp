@@ -176,6 +176,9 @@ struct range {
 template<typename I>
 constexpr range<I> make_range(I first, I last) { return {first, last}; }
 
+template<typename C>
+constexpr auto make_range(C&& c) -> decltype(make_range(c.begin(), c.end())) { return make_range(c.begin(), c.end()); }
+ 
 // file descriptor wrapper conforming to NullablePointer concept
 struct file_descriptor {
   int fd = -1;
