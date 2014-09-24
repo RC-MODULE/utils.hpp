@@ -178,6 +178,13 @@ constexpr range<I> make_range(I first, I last) { return {first, last}; }
 
 template<typename C>
 constexpr auto make_range(C&& c) -> decltype(make_range(c.begin(), c.end())) { return make_range(c.begin(), c.end()); }
+
+template<typename I>
+range<I> make_range(I first, std::size_t n) {
+  auto t = first;
+  std::advance(t, n);
+  return make_range(first, t);
+}
  
 // file descriptor wrapper conforming to NullablePointer concept
 struct file_descriptor {
