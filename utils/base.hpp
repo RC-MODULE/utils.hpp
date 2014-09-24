@@ -253,6 +253,12 @@ struct bit_field_literal_type<c1, '.', c2, c3> : bit_field_literal_type<'0',c1,'
 template<char c1, char c2, char c3>
 struct bit_field_literal_type<c1, c2, '.', c3> : bit_field_literal_type<c1,c2,'.','0',c3> {};
 
+template<char c1>
+struct bit_field_literal_type<c1> : bit_field_literal_type<'0',c1,'.','0','1'> {};
+
+template<char c1, char c2>
+struct bit_field_literal_type<c1,c2> : bit_field_literal_type<c1,c2,'.','0','1'> {};
+
 template<char... c>
 constexpr auto operator "" _bf () -> typename bit_field_literal_type<c...>::type { return bit_field_literal_type<c...>::value; }
 
