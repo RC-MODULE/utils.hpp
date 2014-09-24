@@ -15,7 +15,7 @@ template<typename T>
 class optional {
   variant<nullopt_t, T> storage;
 public:
-  constexpr optional() noexcept = default;
+  constexpr optional() noexcept {}
   constexpr optional(nullopt_t) noexcept {}
 
   optional(const optional& r) noexcept(std::is_nothrow_copy_constructible<T>::value) : storage(r.storage) {}
