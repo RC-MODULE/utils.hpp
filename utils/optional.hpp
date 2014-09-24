@@ -13,7 +13,7 @@ constexpr nullopt_t nullopt{};
 
 template<typename T>
 class optional {
-  variant<nullopt_t, T> storage{nullopt};
+  variant<nullopt_t, T> storage;
 public:
   constexpr optional() noexcept = default;
   constexpr optional(nullopt_t) noexcept {}
@@ -43,8 +43,8 @@ public:
   }
 
   template<typename U>
-  auto operator = (U&& value) -> typename std::enable_if<std::is_constructible<T,U>::value && std::is_assignable<T,U>::value, optional>::type {
-    storage = std::forward<U>(value);
+  auto operator = (U&& value) -> typename std::enable_if<std::is_constructible<T,U>::value && std::is_assignable<T,U>::value, optional&>::type {
+    storage = T(std::forward<U>(value));
     return *this;
   }
 
