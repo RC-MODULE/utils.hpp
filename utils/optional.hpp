@@ -50,11 +50,11 @@ public:
 
   explicit operator bool () const noexcept { return storage.tag() == 1; }
  
-  constexpr T& value() const { return storage.template get<1>(); }
+  constexpr T const& value() const { return storage.template get<1>(); }
   T& value() { return storage.template get<1>(); }
 
-  constexpr T& operator*() const { return value(); }
-  constexpr T* operator->() const { return &value(); }
+  constexpr T const& operator*() const { return value(); }
+  constexpr T const* operator->() const { return &value(); }
   
   T& operator*() { return value(); }
   T* operator->() { return &value(); }
