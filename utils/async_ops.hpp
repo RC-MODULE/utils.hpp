@@ -257,6 +257,14 @@ auto operator += (A op, F func) -> typename std::enable_if<
   };
 }
 
+// adapter to async ops returning tuples 
+template<typename A, typename F>
+auto operator += (A op, F func) -> decltype(utils::call_with_tuple(std::move(func), std::declval<async_result_type<A>>()), std::declval<void>()) {
+  op += [=](async_result_type<A> r) mutable { 
+    utils::call_with_tuple(std::move(func), std::move(r));
+  };
+}
+
 //
 // adapter for asio devices supporting async_read_some method
 //
