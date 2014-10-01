@@ -19,11 +19,11 @@ public:
   expected(expected&&) = default;
   expected(expected const&) = default;
 
-  explicit expected(T&& t) noexcept(noexcept(T(std::move(t)))) : storage(std::move(t)) {}
-  explicit expected(T const& t) noexcept(noexcept(T(t))) : storage(t) {}
+  expected(T&& t) noexcept(noexcept(T(std::move(t)))) : storage(std::move(t)) {}
+  expected(T const& t) noexcept(noexcept(T(t))) : storage(t) {}
 
-  explicit expected(E&& e) noexcept(noexcept(E(std::move(e)))) : storage(std::move(e)) {}
-  explicit expected(E const& e) noexcept(noexcept(E(e))) : storage(e) {}
+  expected(E&& e) noexcept(noexcept(E(std::move(e)))) : storage(std::move(e)) {}
+  expected(E const& e) noexcept(noexcept(E(e))) : storage(e) {}
 
   expected& operator = (expected&&) = default;
   expected& operator = (expected const&) = default;
@@ -67,8 +67,8 @@ public:
   expected(expected&&) = default;
   expected(expected const&) = default;
 
-  explicit expected(E&& e) noexcept(noexcept(E(std::move(e)))) : storage(std::move(e)) {}
-  explicit expected(E const& e) noexcept(noexcept(E(e))) : storage(e) {}
+  expected(E&& e) noexcept(noexcept(E(std::move(e)))) : storage(std::move(e)) {}
+  expected(E const& e) noexcept(noexcept(E(e))) : storage(e) {}
 
   expected& operator = (expected&&) = default;
   expected& operator = (expected const&) = default;

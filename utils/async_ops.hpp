@@ -246,6 +246,7 @@ auto operator += (A op, F func) -> typename std::enable_if<
     && std::is_same<std::error_code, typename async_result_type<A>::error_type>::value
     && std::is_void<typename async_result_type<A>::value_type>::value
     && is_callable<F(typename async_result_type<A>::error_type)>::value
+    && !is_callable<F(async_result_type<A>)>::value 
   >::type
 {
   op += [=](async_result_type<A> r) mutable {
