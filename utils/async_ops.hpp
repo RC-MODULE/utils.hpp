@@ -39,7 +39,7 @@ struct async_value {
 
   template<typename F>
   auto operator += (F&& f) -> typename std::enable_if<is_callable<F(V)>::value>::type {
-    f(value);
+    f(std::move(value));
   }
 };
 
@@ -260,7 +260,7 @@ auto operator += (A op, F func) -> typename std::enable_if<
 // adapter to async ops returning tuples 
 template<typename A, typename F>
 auto operator += (A op, F func) -> decltype(utils::call_with_tuple(std::move(func), std::declval<async_result_type<A>>()), std::declval<void>()) {
-  op += [=](async_result_type<A> r) mutable { 
+  std::move(op) += [=](async_result_type<A> r) mutable { 
     utils::call_with_tuple(std::move(func), std::move(r));
   };
 }
@@ -300,6 +300,43 @@ struct async_result<async_read_some_op<Device, Buffers>> {
 
 template<typename Device, typename Buffers>
 async_read_some_op<Device, Buffers> async_read_some(Device& d, Buffers buffers) {
+  return {d, std::move(buffers)};
+}
+
+//
+// adapter for asio devices supporting async_write_some method
+//
+// template<typename Device, typename Buffers>
+// async_op async_write_some(Device& device, Buffers buffer);
+//
+template<typename Device, typename Buffers>
+struct async_write_some_op {
+  Device& device; 
+  Buffers buffers;
+    
+  using result_type = expected<std::size_t, std::error_code>;
+
+  template<typename Func>
+  auto operator()(Func&& func) -> typename std::enable_if<is_callable<Func(result_type)>::value>::type {
+    device.async_wite_some(buffers, expected_to_asio(func));
+  }
+    
+  template<typename Func>
+  friend auto operator += (async_write_some_op& op, Func func) -> typename std::enable_if<is_callable<Func(result_type)>::value>::type {
+    op.device.async_write_some(op.buffers, expected_to_asio(std::move(func)));
+  }
+};
+    
+template<typename Device, typename Buffers>
+struct is_async_op<async_write_some_op<Device, Buffers>> : std::true_type {};
+
+template<typename Device, typename Buffers>
+struct async_result<async_write_some_op<Device, Buffers>> {
+  using type = typename async_write_some_op<Device, Buffers>::result_type;
+};
+
+template<typename Device, typename Buffers>
+async_write_some_op<Device, Buffers> async_write_some(Device& d, Buffers buffers) {
   return {d, std::move(buffers)};
 }
 
