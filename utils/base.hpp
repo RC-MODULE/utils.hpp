@@ -143,6 +143,9 @@ struct range {
   I first;
   I last;
 
+  using iterator = I;
+  using const_iterator = I;
+
   range() = default;
 
   range(I first, I last) : first(first), last(last) {}
@@ -203,12 +206,14 @@ struct file_descriptor {
 struct file_descriptor_deleter {
   constexpr file_descriptor_deleter() noexcept = default;
 
+  using pointer = file_descriptor;
+
   void operator()(file_descriptor fd) const {
     ::close(int(fd));
   }
 };
 
-using unique_file_descriptor = std::unique_ptr<file_descriptor_deleter>;
+using unique_file_descriptor = std::unique_ptr<int, file_descriptor_deleter>;
 
 struct less {
   template<typename T>
