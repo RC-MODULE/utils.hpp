@@ -6,21 +6,18 @@
 namespace utils {
 
 template<int Code, typename Data>
-struct ioctl_write_buffer {
-  int operator()(int fd) const { return ::ioctl(fd, Code, &data); }
-  Data data;
-};
+struct ioctl_write_buffer { Data data; };
 
 template<int Code, typename Data>
-struct ioctl_write_buffer<Code, std::reference_wrapper<Data>> {
-  int operator()(int fd) const { return ::ioctl(fd, Code, &data.get()); }
-  std::reference_wrapper<Data> data;
-};
+Data const& data(ioctl_write_buffer<Code, Data> const& buf) { return buf.data; }
 
-template<int Code>
-struct ioctl_write_buffer<Code, void> {
-  int operator()(int fd) const { return ::ioctl(fd, Code); }
-};
+template<int Code, typename Data>
+Data const& data(ioctl_write_buffer<Code, std::reference_wrapper<Data>> const& buf) { return buf.data.get(); }
+
+template<int Code, typename Data>
+int ioctl_perform(int fd, ioctl_write_buffer<Code, Data> const& buf) {
+  return ::ioctl(fd, Code, &data(buf));
+}
 
 template<int Code, typename Data>
 auto make_ioctl_write_buffer(Data&& d) -> ioctl_write_buffer<Code, typename std::decay<Data>::type> { return {std::forward<Data>(d)}; }
@@ -47,7 +44,7 @@ public:
 
     o->ec_ = asio::error_code();
 
-    if(o->buffer(o->descriptor)) o->ec_ = asio::error_code(errno, asio::error::get_system_category());
+    if(ioctl_perform(o->descriptor, o->buffer)) o->ec_ = asio::error_code(errno, asio::error::get_system_category());
 
     if(!o->ec_)
       o->bytes_transferred_ = sizeof(std::uint32_t);
