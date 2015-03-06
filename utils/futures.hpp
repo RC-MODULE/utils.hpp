@@ -325,6 +325,27 @@ future<R> unwrap(future<future<R>> f) {
   return r;
 }
 
+inline future<void> unwrap(future<future<void>> f) {
+  promise<void> p;
+  auto r = p.get_future();
+  f.then([p = std::move(p)](future<future<void>> r) mutable {
+    try {
+      r.get().then([p = std::move(p)](future<void> r) mutable {
+        try {
+          r.get();
+          p.set_value();
+        } 
+        catch(...) {
+          p.set_exception(std::current_exception());
+        }
+      });
+    }
+    catch(...) {
+      p.set_exception(std::current_exception());
+    }
+  });
+  return r;
+}
 
 template<typename R>
 template<typename C>
