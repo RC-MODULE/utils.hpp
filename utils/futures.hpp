@@ -2,9 +2,12 @@
 #define __light_futures_hpp__
 
 #include <functional>
+#include <vector>
+#include <iterator>
 
 #include "base.hpp"
 #include "variant.hpp"
+
 
 namespace utils {
 
@@ -242,6 +245,7 @@ protected:
 
   promise_base(promise_base const&) = delete;
   promise_base(promise_base&&) = default;
+  promise_base& operator=(promise_base&&) = default;
 
   void set_value_internal(value_wrapper<R>&& r) {
     auto s = this->get_state();
@@ -266,6 +270,10 @@ public:
 template<typename R>
 class promise : public promise_base<R> {
 public:
+  promise() = default;
+  promise(promise&&) = default;
+  promise& operator=(promise&& r) = default;
+
   void set_value(R&& r) {
     promise_base<R>::set_value_internal(value_wrapper<R>(std::move(r)));
   }
@@ -302,23 +310,22 @@ future<R> unwrap(future<R> f) { return std::move(f); }
 
 template<typename R>
 future<R> unwrap(future<future<R>> f) {
-  auto p = move_on_copy(promise<R>());
-  auto r = unwrap(p).get_future();
+  promise<R> p;
+  auto r = p.get_future();
 
-  f.then([=](future<future<R>> r) { 
+  f.then([p = std::move(p)](future<future<R>> r) mutable { 
     try {
-      auto r2 = r.get();
-      r2.then([=](future<R> r3) {
+      r.get().then([p = std::move(p)](future<R> r3) mutable {
         try {
-          p.value.set_value(r3.get());
+          p.set_value(r3.get());
         }
         catch(...) {
-          p.value.set_value(r3.get());
+          p.set_value(r3.get());
         }
       });
     }
     catch(...) {
-      p.value.set_exception(std::current_exception());
+      p.set_exception(std::current_exception());
     }
   });
 
@@ -425,7 +432,6 @@ public:
     p.set_value(item{std::move(f), std::move(t)});
   }
 };
-
 } // inline namespace futures
 } // utils
 
