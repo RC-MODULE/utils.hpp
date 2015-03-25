@@ -432,6 +432,42 @@ public:
     p.set_value(item{std::move(f), std::move(t)});
   }
 };
+
+template<typename I>
+future<std::vector<typename std::iterator_traits<I>::value_type>> when_all(I first, I last) {
+  using future_type = typename std::iterator_traits<I>::value_type;
+  std::vector<future_type> v(std::distance(first, last));
+  std::move(first, last, v.begin());
+
+  struct impl {
+    auto operator()(std::vector<future_type> v, size_t n) {
+      if(n == v.size()) return make_ready_future(std::move(v));
+      auto f = std::move(v[n]);
+      return f.then([v = std::move(v), n] (auto f) mutable { 
+        v[n] = std::move(f);
+        return impl{}(std::move(v), n + 1); 
+      }); 
+    }   
+  };  
+
+  return impl{}(std::move(v), 0); 
+}
+
+inline 
+future<std::tuple<>> when_all() { return make_ready_future(std::tuple<>()); }
+
+template<typename Future>
+future<std::tuple<std::decay_t<Future>>> when_all(Future&& future) {
+  return future.then([](auto f) { return std::make_tuple(std::move(f)); }); 
+}
+
+template<typename FuturesH, typename... FuturesT>
+future<std::tuple<std::decay_t<FuturesH>, std::decay_t<FuturesT>...>> when_all(FuturesH&& h, FuturesT&&... t) {
+  return h.then([f2 = when_all(t...)](auto f1) mutable {
+    return f2.then([f1 = std::move(f1)](auto f2) mutable { return std::tuple_cat(std::make_tuple(std::move(f1)), f2.get());});
+  }); 
+}
+
 } // inline namespace futures
 } // utils
 
