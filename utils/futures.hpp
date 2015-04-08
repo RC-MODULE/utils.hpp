@@ -143,7 +143,10 @@ struct future_shared_state {
 
     storage = std::move(r);
 
-    if(!!notification) notification();
+    if(!!notification) {
+      auto n = std::move(notification);
+      n();
+    }
   }
 
   void set_exception(std::exception_ptr p) { 
