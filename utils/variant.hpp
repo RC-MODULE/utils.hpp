@@ -182,6 +182,21 @@ class variant {
       t.~T();
     }
   };
+
+  struct compare {
+    bool flag = false;
+    template<int I>
+    void operator()(std::integral_constant<int, I> ic, variant const& lhs, variant const& rhs) {
+      if(lhs.tag() == rhs.tag()) flag = lhs.get<I>() == rhs.get<I>();
+    } 
+  };
+
+  friend bool operator == (variant const& a, variant const& b) {
+    if(a.tag() != b.tag()) return false;
+    compare c;
+    apply_to_static_index<0, sizeof...(Types)>(a.tag(), std::ref(c), a, b);
+    return c.flag;  
+  }
 public:
   variant() 
     noexcept(noexcept(variant(std::integral_constant<int, 0>())))
@@ -264,6 +279,7 @@ public:
   void apply(Op op, Args&& ... args) const {
     apply_to_static_index<0, sizeof...(Types)>(tag_, applicator(), *this, op, std::forward<Args>(args)...);
   }
+
 };
 
 }
