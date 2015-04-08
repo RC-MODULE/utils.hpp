@@ -401,6 +401,13 @@ inline future<void> make_ready_future() {
   return p.get_future();
 }
 
+template<typename R>
+future<R> make_exceptional_future(std::exception_ptr e) {
+  promise<R> p;
+  p.set_exception(e);
+  return p.get_future();
+}
+
 template<typename T>
 class future_queue {
   struct item {
