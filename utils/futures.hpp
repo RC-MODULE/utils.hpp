@@ -453,7 +453,7 @@ future<std::tuple<std::decay_t<Future>>> when_all(Future&& future) {
 
 template<typename FuturesH, typename... FuturesT>
 future<std::tuple<std::decay_t<FuturesH>, std::decay_t<FuturesT>...>> when_all(FuturesH&& h, FuturesT&&... t) {
-  return h.then([f2 = when_all(t...)](auto f1) mutable {
+  return h.then([f2 = when_all(std::forward<FuturesT>(t)...)](auto f1) mutable {
     return f2.then([f1 = std::move(f1)](auto f2) mutable { return std::tuple_cat(std::make_tuple(std::move(f1)), f2.get());});
   }); 
 }
