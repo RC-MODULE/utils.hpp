@@ -128,11 +128,9 @@ struct future_shared_state {
         notification = move_on_copy(std::move(c));
       }
       else {
-        auto prev = std::move(notification);
-        auto mc = move_on_copy(std::move(c));
-        notification = [=]() mutable noexcept { 
+        notification = [prev = std::move(notification), c = move_on_copy(std::move(c))]() mutable noexcept { 
           prev();
-          mc();
+          c();
         };
       }
     }
@@ -199,6 +197,8 @@ public:
   shared_future(future<R>&& p);
   
   auto get() const -> decltype(this->get_state()->get_shared()) { return this->get_state()->get_shared(); }
+
+  bool valid() const noexcept { return !!this->state; }
 
   template<typename C>
   auto then(C&& c) -> decltype(unwrap(std::declval<future<decltype(c(*this))>>()));
@@ -364,23 +364,14 @@ auto future<R>::then(C&& c) -> decltype(unwrap(std::declval<future<decltype(c(st
   promise<result_type> p;
   auto f = p.get_future();
 
-  struct continuation {
-    promise<result_type> p;
-    typename std::decay<C>::type c;
-    future<R> f;
-      
-    void operator()() noexcept {
-      try {
-        p.set_value_internal(value_wrapper<result_type>::wrap(c,std::move(f)));
-      }
-      catch(...) {
-        p.set_exception(std::current_exception());
-      }
+  s->add_notification([p = std::move(p), c = std::forward<C>(c), f = std::move(*this)]() mutable {
+    try {
+      p.set_value_internal(value_wrapper<result_type>::wrap(c,std::move(f)));
     }
-  };
-
-  s->add_notification(continuation{std::move(p), std::move(c), std::move(*this)});
-
+    catch(...) {
+      p.set_exception(std::current_exception());
+    }
+  });
   return unwrap(std::move(f));
 }
 
@@ -391,8 +382,7 @@ template<typename R>
 template<typename C>
 auto shared_future<R>::then(C&& c) -> decltype(unwrap(std::declval<future<decltype(c(*this))>>())) {
   // dirty hack
-  auto mc = move_on_copy(std::move(c));
-  return future<R>(this->get_state()).then([=](future<R> f) mutable { return mc(f.share()); });
+  return future<R>(this->get_state()).then([c = std::forward<C>(c)](future<R> f) mutable { return c(f.share()); });
 }
 
 template<typename R>
