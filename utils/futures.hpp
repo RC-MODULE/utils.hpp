@@ -395,6 +395,12 @@ future<R> make_ready_future(R r) {
   return p.get_future();
 }
 
+inline future<void> make_ready_future() {
+  promise<void> p;
+  p.set_value();
+  return p.get_future();
+}
+
 template<typename T>
 class future_queue {
   struct item {
