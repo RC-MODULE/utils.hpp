@@ -8,6 +8,7 @@
 #include "utils/async_ops.hpp"
 #include "utils/optional.hpp"
 #include "utils/byte-sequence.hpp"
+#include "utils/asio_utils.hpp"
 
 #endif
 
