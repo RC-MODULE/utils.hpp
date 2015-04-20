@@ -27,7 +27,7 @@ struct generic_read_buffer {
 };
 
 template<typename Data>
-Data* data(generic_read_buffer<Data*> const& buf) { return buf.data; }
+Data const& data(generic_read_buffer<Data> const& buf) { return buf.data; }
 
 template<typename Data>
 int perform_read(int fd, generic_read_buffer<Data*> const& buf) { 
@@ -67,6 +67,8 @@ int perform_read(int fd, generic_read_buffer<ioctl_data<Code, Data*>> const& buf
 template<int Code, typename Data>
 auto make_ioctl_write_buffer(Data&& d) -> generic_write_buffer<ioctl_data<Code, typename std::decay<Data>::type>> { return {{std::forward<Data>(d)}}; }
 
+template<int Code, typename Data>
+auto make_ioctl_read_buffer(Data&& d) -> generic_read_buffer<ioctl_data<Code, std::decay_t<Data>>> { return {{std::forward<Data>(d)}}; }
 }
  
 namespace asio { namespace detail {
