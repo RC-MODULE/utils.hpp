@@ -1,6 +1,8 @@
 #ifndef __INTRUSIVE_PTR_HPP__
 #define __INTRUSIVE_PTR_HPP__
 
+#include <cassert>
+
 namespace utils {
 
 template<class T>
