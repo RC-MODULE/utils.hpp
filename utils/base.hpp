@@ -366,6 +366,16 @@ I stable_alternate(I first, I last, Pred pred) {
   return first;
 }
 
+// helper for starting lambda base recursions
+template<typename Func>
+void recursion(Func func) {
+  func(
+    [=]() {
+      recursion(func);
+    }
+  );
+}
+
 
 }
 
