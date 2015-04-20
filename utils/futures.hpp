@@ -181,6 +181,9 @@ template<typename R>
 class future;
 
 template<typename R>
+class shared_future;
+
+template<typename R>
 class promise_base;
 
 template<typename R>
@@ -191,6 +194,12 @@ future<R> unwrap(future<R> f);
 
 template<typename R>
 future<R> unwrap(future<future<R>> f);
+
+template<typename R>
+future<R> unwrap(shared_future<R> f);
+
+template<typename R>
+future<R> unwrap(future<shared_future<R>> f);
 
 template<typename R>
 class shared_future : private future_shared_state_handle<R> {
@@ -354,6 +363,30 @@ inline future<void> unwrap(future<future<void>> f) {
       p.set_exception(std::current_exception());
     }
   });
+  return r;
+}
+
+template<typename R>
+future<R> unwrap(future<shared_future<R>> f) {
+  promise<R> p;
+  auto r = p.get_future();
+
+  f.then([p = std::move(p)](auto r) mutable { 
+    try {
+      r.get().then([p = std::move(p)](auto r3) mutable {
+        try {
+          p.set_value(r3.get());
+        }
+        catch(...) {
+          p.set_value(r3.get());
+        }
+      });
+    }
+    catch(...) {
+      p.set_exception(std::current_exception());
+    }
+  });
+
   return r;
 }
 
