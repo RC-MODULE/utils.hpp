@@ -211,6 +211,7 @@ public:
   auto get() const -> decltype(this->get_state()->get_shared()) { return this->get_state()->get_shared(); }
 
   bool valid() const noexcept { return !!this->state; }
+  bool ready() const noexcept { return valid() && this->state->ready(); }
 
   template<typename C>
   auto then(C&& c) -> decltype(unwrap(std::declval<future<decltype(c(*this))>>()));
@@ -220,7 +221,7 @@ template<typename R>
 class future : future_shared_state_handle<R> {
   friend class shared_future<R>;
   friend class promise_base<R>;
-  
+ 
   future(std::shared_ptr<future_shared_state<R>> p) : future_shared_state_handle<R>(std::move(p)) {}
 public:
   future() noexcept = default;
@@ -248,6 +249,14 @@ class promise_base : future_shared_state_handle<R> {
   template<typename R1> friend class future;
   friend class shared_future<R>;
   
+  template<typename R2>
+  friend future<R2> unwrap(future<future<R2>>);
+  friend future<void> unwrap(future<future<void>>);
+
+  template<typename R2>
+  friend future<R2> unwrap(future<shared_future<R2>>);
+  friend future<void> unwrap(future<shared_future<void>>);
+ 
 protected:
   promise_base() : future_shared_state_handle<R>(std::make_shared<future_shared_state<R>>()) {}
   ~promise_base() {
@@ -324,20 +333,21 @@ template<typename R>
 future<R> unwrap(future<future<R>> f) {
   promise<R> p;
   auto r = p.get_future();
+  auto s = p.move_state();
 
-  f.then([p = std::move(p)](future<future<R>> r) mutable { 
+  f.then([=](future<future<R>> r) { 
     try {
-      r.get().then([p = std::move(p)](future<R> r3) mutable {
+      r.get().then([=](future<R> r3) {
         try {
-          p.set_value(r3.get());
+          s->set_value(value_wrapper<R>(r3.get()));
         }
         catch(...) {
-          p.set_value(r3.get());
+          s->set_exception(std::current_exception());
         }
       });
     }
     catch(...) {
-      p.set_exception(std::current_exception());
+      s->set_exception(std::current_exception());
     }
   });
 
@@ -347,20 +357,22 @@ future<R> unwrap(future<future<R>> f) {
 inline future<void> unwrap(future<future<void>> f) {
   promise<void> p;
   auto r = p.get_future();
-  f.then([p = std::move(p)](future<future<void>> r) mutable {
+  auto s = p.move_state();
+
+  f.then([=](future<future<void>> r) {
     try {
-      r.get().then([p = std::move(p)](future<void> r) mutable {
+      r.get().then([=](future<void> r) {
         try {
           r.get();
-          p.set_value();
+          s->set_value(value_wrapper<void>());
         } 
         catch(...) {
-          p.set_exception(std::current_exception());
+          s->set_exception(std::current_exception());
         }
       });
     }
     catch(...) {
-      p.set_exception(std::current_exception());
+      s->set_exception(std::current_exception());
     }
   });
   return r;
@@ -370,20 +382,21 @@ template<typename R>
 future<R> unwrap(future<shared_future<R>> f) {
   promise<R> p;
   auto r = p.get_future();
+  auto s = p.move_state();
 
-  f.then([p = std::move(p)](auto r) mutable { 
+  f.then([=](auto r) { 
     try {
-      r.get().then([p = std::move(p)](auto r3) mutable {
+      r.get().then([=](auto r3) {
         try {
-          p.set_value(r3.get());
+          s->set_value(value_wrapper<R>(r3.get()));
         }
         catch(...) {
-          p.set_value(r3.get());
+          s->set_exception(std::current_exception());
         }
       });
     }
     catch(...) {
-      p.set_exception(std::current_exception());
+      s->set_exception(std::current_exception());
     }
   });
 

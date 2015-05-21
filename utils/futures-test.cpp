@@ -173,6 +173,7 @@ void check_shared_then() {
 
   auto r1 = f.then([](shared_future<std::string> s) { return s.get().size() + 11; });
   auto r2 = f.then([](shared_future<std::string> s) { return s.get().size() + 17; });
+  auto r3 = f.then([](auto s) { return s; });
 
   p.set_value("hello");
   assert(r1.get() == 5+11);
@@ -306,9 +307,10 @@ void check_destructor() {
 void check_when_all_tuple() {
   promise<void> p1;
   promise<int> p2;
+  promise<int> p3;
 
   bool flag = false;
-  when_all(p1.get_future(), p2.get_future()).then([&](future<std::tuple<future<void>, future<int>>> r) {
+  when_all(p1.get_future(), p2.get_future().share(), p3.get_future()).then([&](auto r) {
     auto t = r.get();
     std::get<0>(t).get();
     assert(std::get<1>(t).get() == 57);
@@ -319,8 +321,11 @@ void check_when_all_tuple() {
   p2.set_value(57);
   assert(flag == false);
   p1.set_value();
+  assert(flag == false);
+  p3.set_value(91);
+  
   assert(flag == true);
-
+  
   std::cout << "check_when_all_tuple: done" << std::endl;
 }
 
@@ -349,6 +354,22 @@ void check_when_all_vector() {
   std::cout << "check_when_all_vector: done" << std::endl;
 }
 
+void check_return_invalid_future_from_then() {
+  promise<void> p;
+  auto f = p.get_future().then([](auto) { return future<void>{}; });
+
+  p.set_value();
+  try {
+    f.get();
+    assert(0);
+  }
+  catch(future_error const& e) {
+    assert(e.code() == make_error_code(future_errc::no_state));
+  }
+
+  std::cout << "check_return_invalid_future_from_then" << std::endl;
+}
+
 int main(int argc, char* argv[]) {
   test1();
   check_void_promise();
@@ -370,5 +391,7 @@ int main(int argc, char* argv[]) {
 
   check_when_all_tuple();
   check_when_all_vector();
+
+  check_return_invalid_future_from_then();
 }
 
